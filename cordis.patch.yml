@@ -1,0 +1,9 @@
+# dsh-effort-sync patch.
+#
+# `required: false` keeps a failure in this plugin from blocking harness
+# startup — it degrades to "tool missing" instead of a broken boot.
+- insert:
+    - id: dsh-effort-sync
+      name: dsh-effort-sync
+      config:
+        required: false

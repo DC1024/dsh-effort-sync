@@ -1,0 +1,8 @@
+# Packed bundles are local build artifacts; the source is the deliverable.
+*.tgz
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+*.log
+_*.mjs
