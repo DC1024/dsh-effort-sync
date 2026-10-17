@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="no-js">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>dsh-effort-sync // 给模型补上思考强度</title>
+<meta name="description" content="DSH 插件：把模型目录里的推理等级（reasoningEfforts）与供应商 /v1/models 实际声明的能力对齐——一个 sync_reasoning_levels 工具，加上设置页里一次点击。" />
+<meta property="og:title" content="dsh-effort-sync // 给模型补上思考强度" />
+<meta property="og:description" content="供应商报了档位，DSH 却搬不进来。这个插件把那一环补上：dry-run 先看差异，点一下写回目录。" />
+<meta property="og:type" content="website" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230a0f18'/><text x='16' y='23' font-size='17' text-anchor='middle' fill='%2322d3ee'>◈</text></svg>" />
+<link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+<canvas id="mesh" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<div class="scanlines" aria-hidden="true"></div>
+
+<header class="nav">
+  <a class="nav-brand" href="#top">
+    <span class="nav-logo">◈</span>
+    <span class="nav-name">dsh<span class="dim">-</span>effort<span class="dim">-</span>sync</span>
+  </a>
+  <nav class="nav-links">
+    <a href="#why">起因</a>
+    <a href="#surfaces">两个入口</a>
+    <a href="#safety">安全设计</a>
+    <a href="#install">安装</a>
+  </nav>
+  <a class="nav-cta" href="https://github.com/DC1024/dsh-effort-sync" target="_blank" rel="noopener">
+    <svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+    GitHub
+  </a>
+</header>
+
+<main id="top">
+
+  <!-- ================= HERO ================= -->
+  <section class="hero">
+    <div class="hero-tag" data-reveal>
+      <span class="pulse"></span>
+      DEEPSEEK HARNESS · PLUGIN · v0.2.0
+    </div>
+
+    <h1 class="hero-title" data-reveal>
+      <span class="line">网关报了六档强度，</span>
+      <span class="line glow">模型选择器里却是空的</span>
+    </h1>
+
+    <p class="hero-sub" data-reveal>
+      供应商在 <code>/v1/models</code> 里写着 <code>supported_reasoning_levels</code>，
+      而 DSH 的发现契约没有这一格——于是刚加进来的模型<strong>选不到思考强度</strong>。
+      这个插件读上游、写目录：<strong>dry-run 先看差异，点一下写回</strong>。
+    </p>
+
+    <div class="hero-actions" data-reveal>
+      <a class="btn btn-primary" href="#install">开始安装</a>
+      <a class="btn btn-ghost" href="https://github.com/DC1024/dsh-effort-sync" target="_blank" rel="noopener">阅读源码</a>
+    </div>
+
+    <!-- terminal demo -->
+    <div class="terminal" data-reveal>
+      <div class="terminal-bar">
+        <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+        <span class="terminal-title">dsh — sync_reasoning_levels</span>
+      </div>
+      <div class="terminal-body">
+        <div class="msg user">
+          <span class="who">YOU</span>
+          <p>把新加的模型补齐思考强度，先别写，给我看看会改什么</p>
+        </div>
+        <div class="msg bot">
+          <span class="who">DSH</span>
+          <p>工具默认就是 dry-run。读到 magpie 的 /v1/models，差异如下：</p>
+          <pre class="code-out" data-reveal>provider=magpie dryRun=true upstream=103 catalog=4
+  magpie / cc/gpt-6-luna: max -> low,medium,high,xhigh,max
+      skipped: none
+  magpie / never-advertised: not advertised by the provider (left untouched)
+  note: levels reported but not written: none (pass noneMapsToOff=true)</pre>
+        </div>
+        <div class="msg user">
+          <span class="who">YOU</span>
+          <p>就这样，写回去</p>
+        </div>
+        <div class="msg bot">
+          <span class="who">DSH</span>
+          <p>写回走的是 <code>configEditor</code>——和设置界面同一条路径：</p>
+          <div class="chip-row">
+            <span class="chip"><span class="chip-icon">◈</span><span class="chip-model">applied: catalog updated</span><span class="chip-badge">WROTE 2</span></span>
+            <span class="chip-note">↑ 只动 reasoningEfforts，不动密钥/地址/其它模型</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats" data-reveal>
+      <div class="stat">
+        <span class="stat-num">7</span>
+        <span class="stat-label">LEVELS<br />只写 DSH 认识的档</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">1</span>
+        <span class="stat-label">CLICK<br />设置页一次点击</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">0</span>
+        <span class="stat-label">SURPRISE<br />默认加性合并</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= WHY ================= -->
+  <section id="why" class="section">
+    <div class="section-head" data-reveal>
+      <span class="kicker">// WHY THIS EXISTS</span>
+      <h2>缺口只有一环，但正好卡在最后一格</h2>
+      <p class="section-desc">
+        不是供应商没报，也不是 DSH 没有概念——是发现契约里没有放它的地方。
+      </p>
+    </div>
+
+    <div class="grid-3">
+      <article class="card" data-reveal>
+        <span class="card-idx">01</span>
+        <h3>发现契约没有 reasoning 槽位</h3>
+        <p>
+          <code>LlmDiscoveredModel = { id, name?, contextWindow?, maxTokens?, inputModalities? }</code>
+          ——即使供应商在 <code>/v1/models</code> 里报了能力，DSH 也搬不进来。
+        </p>
+      </article>
+      <article class="card" data-reveal>
+        <span class="card-idx">02</span>
+        <h3>能力只有一条入口</h3>
+        <p>
+          <code>LlmResolvedModelInfo.reasoning</code> 来自适配器自报或目录声明（<code>reasoningEfforts</code>），
+          而网关通常不替每个模型写声明。
+        </p>
+      </article>
+      <article class="card" data-reveal>
+        <span class="card-idx">03</span>
+        <h3>于是选择器空着</h3>
+        <p>
+          像 magpie 这样已经提供 <code>supported_reasoning_levels</code> 的网关，
+          新加的模型依旧没有任何档位可选——只能手写 YAML。
+        </p>
+      </article>
+    </div>
+
+    <div class="flow" data-reveal>
+      <svg viewBox="0 0 900 200" role="img" aria-label="数据流：供应商 /v1/models 到插件到模型目录">
+        <defs>
+          <linearGradient id="wire" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.15" />
+            <stop offset="50%" stop-color="#22d3ee" stop-opacity="0.95" />
+            <stop offset="100%" stop-color="#a78bfa" stop-opacity="0.35" />
+          </linearGradient>
+        </defs>
+        <path d="M40 100 H300" class="wire" />
+        <path d="M300 100 H600" class="wire" />
+        <path d="M600 100 H860" class="wire" />
+        <circle cx="40" cy="100" r="4" class="node" />
+        <circle cx="300" cy="100" r="5" class="node core" />
+        <circle cx="600" cy="100" r="4" class="node" />
+        <circle cx="860" cy="100" r="4" class="node core" />
+        <text x="40" y="80" class="svg-label">供应商 /v1/models</text>
+        <text x="40" y="130" class="svg-sub">supported_reasoning_levels</text>
+        <text x="300" y="80" class="svg-label" text-anchor="middle">dsh-effort-sync</text>
+        <text x="300" y="130" class="svg-sub" text-anchor="middle">读→差→写</text>
+        <text x="600" y="80" class="svg-label" text-anchor="middle">模型目录</text>
+        <text x="600" y="130" class="svg-sub" text-anchor="middle">reasoningEfforts</text>
+        <text x="860" y="80" class="svg-label" text-anchor="end">模型选择器</text>
+        <text x="860" y="130" class="svg-sub" text-anchor="end">出现强度档位</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ================= SURFACES ================= -->
+  <section id="surfaces" class="section">
+    <div class="section-head" data-reveal>
+      <span class="kicker">// TWO SURFACES</span>
+      <h2>同一个内核，两个入口</h2>
+      <p class="section-desc">工具给 agent 用，按钮给人用；逻辑同一份（<code>lib/sync.js</code>）。</p>
+    </div>
+
+    <div class="grid-2">
+      <article class="card card-lg" data-reveal>
+        <div class="card-top">
+          <span class="tag tag-cyan">GUI</span>
+          <span class="card-meta">设置 → 模型 · 页尾</span>
+        </div>
+        <h3>「同步推理等级」按钮</h3>
+        <p>
+          加完模型，滚到页尾点一下：读每个声明了 <code>providers</code> 的供应商，
+          把上游公布、目录里还缺的档位补齐，<strong>并把写了什么直接列在按钮下方</strong>。
+        </p>
+        <div class="mock" aria-hidden="true">
+          <div class="mock-head">
+            <span class="mock-title">推理等级</span>
+            <span class="mock-btn">同步推理等级</span>
+          </div>
+          <p class="mock-hint">
+            供应商在 /v1/models 里公布了 supported_reasoning_levels，但 DSH 的模型发现契约没有这个字段，
+            所以新加的模型选不到思考强度。点一下即可按供应商公布的内容补齐。
+          </p>
+          <pre class="mock-out">已写入 2 个模型的推理等级：
+  magpie / cc/gpt-6-luna: max → low,medium,high,xhigh,max
+      跳过（DSH 不认识的等级）: none</pre>
+        </div>
+      </article>
+
+      <article class="card card-lg" data-reveal>
+        <div class="card-top">
+          <span class="tag tag-violet">TOOL</span>
+          <span class="card-meta">sync_reasoning_levels</span>
+        </div>
+        <h3>给 agent 的干跑工具</h3>
+        <p>
+          默认 <code>dryRun: true</code>，只报告差异；要落地就显式 <code>dryRun=false</code>。
+          参数还有 <code>provider</code> / <code>only</code> / <code>noneMapsToOff</code> / <code>replace</code>。
+        </p>
+        <div class="kv">
+          <div class="kv-row"><code>provider</code><span>限定某个供应商（默认全部声明的）</span></div>
+          <div class="kv-row"><code>dryRun</code><span>默认 true，只报告不写</span></div>
+          <div class="kv-row"><code>only</code><span>只同步指定模型 id</span></div>
+          <div class="kv-row"><code>noneMapsToOff</code><span>是否把上游的 none 映射成 off（默认不猜）</span></div>
+          <div class="kv-row"><code>replace</code><span>用上游列表替换声明（默认加性合并）</span></div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ================= EVIDENCE ================= -->
+  <section id="evidence" class="section">
+    <div class="section-head" data-reveal>
+      <span class="kicker">// EVIDENCE</span>
+      <h2>差别长这样</h2>
+      <p class="section-desc">
+        没有魔法，就是一次集合补齐：保留你已有的映射，加入上游公布的档位，DSH 不认识的值只报告。
+      </p>
+    </div>
+
+    <div class="table-wrap" data-reveal>
+      <table class="diff">
+        <thead>
+          <tr><th>模型</th><th>之前</th><th>之后</th><th>备注</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>group/smart-split</code></td>
+            <td><span class="none">（无声明）</span></td>
+            <td class="ok">low · high</td>
+            <td>上游只报两档，就只补两档</td>
+          </tr>
+          <tr>
+            <td><code>cc/gpt-6-luna</code></td>
+            <td>max <span class="dim">（wire: ultra）</span></td>
+            <td class="ok">low · medium · high · xhigh · max</td>
+            <td>已有拼写保留，缺的补上</td>
+          </tr>
+          <tr>
+            <td><code>cc/deepseek/…-flash</code></td>
+            <td><span class="none">（无声明）</span></td>
+            <td class="ok">off · low · medium · high · xhigh · max</td>
+            <td>含 off：可显式关掉思考</td>
+          </tr>
+          <tr>
+            <td><code>never-advertised</code></td>
+            <td><span class="none">（无声明）</span></td>
+            <td class="none">原样不动</td>
+            <td>上游没广告的模型不猜</td>
+          </tr>
+          <tr>
+            <td><span class="dim">上游的 <code>none</code></span></td>
+            <td>—</td>
+            <td class="skip">跳过并提示</td>
+            <td>是否映射成 <code>off</code> 由你决定</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note" data-reveal>
+      实测（本机 magpie）：上游 103 个模型，目录里 4 个；供应商报的档位常是上游能力的
+      <strong>保守子集</strong>——所以默认只增不减，<code>replace</code> 要显式开启。
+    </p>
+  </section>
+
+  <!-- ================= SAFETY ================= -->
+  <section id="safety" class="section">
+    <div class="section-head" data-reveal>
+      <span class="kicker">// DESIGNED TO NOT SURPRISE YOU</span>
+      <h2>安全设计</h2>
+      <p class="section-desc">写配置这件事，宁可啰嗦一点。</p>
+    </div>
+
+    <div class="grid-2">
+      <ul class="list" data-reveal>
+        <li><strong>默认不写</strong>：工具 dry-run 先行；按钮是显式点击，写完把差异回报给你。</li>
+        <li><strong>只写 DSH 认识的档</strong>：词表固定 off / minimal / low / medium / high / xhigh / max。</li>
+        <li><strong>保留既有 wire 拼写</strong>：<code>max: ultra</code> 这类的映射不会被覆盖。</li>
+        <li><strong>加性优先</strong>：只增不减，掉档位这种不可逆动作必须显式 <code>replace</code>。</li>
+      </ul>
+      <ul class="list" data-reveal>
+        <li><strong>不动上游没广告的模型</strong>：查不到就原样跳过，并在报告里说明。</li>
+        <li><strong>不碰凭据</strong>：只经 <code>credentials.resolve(apiKeyEnv)</code> 取值，不落盘、不打印。</li>
+        <li><strong>不整块改写供应商</strong>：只写 <code>models</code>，并按字段把下层已有的密钥/地址补全，不会写空。</li>
+        <li><strong>单点故障不扩散</strong>：某个供应商读不通，只单独报告，不阻断其它写入。</li>
+      </ul>
+    </div>
+
+    <div class="rule" data-reveal>
+      <span class="rule-mark">已知边界</span>
+      <p>
+        上游标 <code>reasoning: false</code> 的模型，插件<strong>不会</strong>替你写
+        <code>reasoningEfforts: false</code>（那会让选择器消失，属于行为变更）——只在报告里提示你手工决定。
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= INSTALL ================= -->
+  <section id="install" class="section">
+    <div class="section-head" data-reveal>
+      <span class="kicker">// INSTALL</span>
+      <h2>三步装上</h2>
+      <p class="section-desc">本地插件，装进 profile；带 client 半步，需要重启一次 DSH。</p>
+    </div>
+
+    <ol class="steps" data-reveal>
+      <li>
+        <span class="step-num">01</span>
+        <div>
+          <h3>打包</h3>
+          <div class="cmd">
+            <code>pnpm pack</code>
+            <button class="copy" data-copy="pnpm pack" type="button">COPY</button>
+          </div>
+          <p class="step-note">沙箱里 <code>pnpm pack</code> 会被拒的话，用仓库自带的 <code>tools/pack.mjs</code>（纯 Node 直出 npm 格式 tgz）。</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-num">02</span>
+        <div>
+          <h3>装进 DSH</h3>
+          <div class="cmd">
+            <code>设置 → 插件 → 安装 tarball</code>
+            <button class="copy" data-copy="plugin_manager install_bundle <tarball>" type="button">COPY</button>
+          </div>
+          <p class="step-note">或让 agent 用 <code>plugin_manager install_bundle</code> 装那个 .tgz。</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-num">03</span>
+        <div>
+          <h3>重启 DSH</h3>
+          <p class="step-note">
+            host 半是热加载的，<strong>client 半要重启才挂载</strong>——重启后设置 → 模型页尾就会出现按钮。
+            升级务必 bump 版本号：DSH 按 generation 路径缓存已加载的 ESM。
+          </p>
+        </div>
+      </li>
+    </ol>
+
+    <div class="ci" data-reveal>
+      <div class="ci-head">
+        <span class="tag tag-green">CI</span>
+        <span class="ci-title">rehearsal</span>
+        <span class="ci-state">completed / success</span>
+      </div>
+      <p>
+        仓库自带离线自测：假 ctx + 假上游，走真实 HTTP 打自己那条路由，断言 dry-run 零写入、
+        写入结构与拼写、幂等、以及各种错误路径。云端 Actions 也跑同一份。
+      </p>
+      <div class="cmd">
+        <code>node rehearsal.mjs</code>
+        <button class="copy" data-copy="node rehearsal.mjs" type="button">COPY</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CTA ================= -->
+  <section class="cta" data-reveal>
+    <h2>给下一个模型，省掉手写 YAML</h2>
+    <p>MIT 开源 · 无遥测 · 读写都走 DSH 自己的正规路径</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="https://github.com/DC1024/dsh-effort-sync" target="_blank" rel="noopener">GitHub 仓库</a>
+      <a class="btn btn-ghost" href="https://github.com/DC1024/dsh-effort-sync#readme" target="_blank" rel="noopener">README</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <span>dsh-effort-sync · v0.2.0 · MIT</span>
+  <span class="dim">DeepSeek Harness plugin · 本页为静态单页，无外部依赖</span>
+</footer>
+
+<script src="./script.js"></script>
+</body>
+</html>

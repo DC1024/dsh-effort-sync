@@ -6,3 +6,6 @@
 Thumbs.db
 *.log
 _*.mjs
+
+# Headless-browser artefacts from tools/verify-site-chrome.mjs
+.verify/
