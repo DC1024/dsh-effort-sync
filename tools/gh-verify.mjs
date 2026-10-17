@@ -84,3 +84,15 @@ if (meta.status === 200) {
   console.log('repo:', meta.body.full_name, '| private:', meta.body.private,
     '| default branch:', meta.body.default_branch, '| pushed:', meta.body.pushed_at)
 }
+
+if (process.argv.includes('--runs')) {
+  const runs = await api(`/repos/${repo}/actions/runs?per_page=5`)
+  if (runs.status === 200) {
+    console.log(`workflow runs (${runs.body.total_count} total):`)
+    for (const run of runs.body.workflow_runs ?? []) {
+      console.log(`  ${run.name} #${run.run_number} ${run.status}/${run.conclusion ?? '-'} ${run.head_sha.slice(0, 7)} ${run.html_url}`)
+    }
+  } else {
+    console.log('workflow runs ->', runs.status, runs.body?.message)
+  }
+}
